@@ -19,6 +19,7 @@ from typing import Optional
 
 import discord
 from discord import app_commands
+from discord.ext import tasks
 
 DATA_FILE = Path("data.json")
 def _read_token() -> str:
@@ -534,9 +535,29 @@ async def vunmute(i: discord.Interaction, member: discord.Member):
     await i.response.send_message(f"🔓 ปลดไมค์ {member.mention} แล้ว")
 
 
+# ลิงก์สตรีม ต้องเป็น Twitch หรือ YouTube เท่านั้น ถึงจะขึ้นสถานะสตรีมสีม่วง
+STREAM_URL = "https://www.twitch.tv/discord"
+
+
+@tasks.loop(minutes=5)
+async def update_status():
+    """สถานะสตรีม: X servers | Y members (อัปเดตทุก 5 นาที)"""
+    servers = len(bot.guilds)
+    members = sum(gd.member_count or 0 for gd in bot.guilds)
+    await bot.change_presence(
+        status=discord.Status.online,
+        activity=discord.Streaming(
+            name=f"{servers} servers | {members} members",
+            url=STREAM_URL,
+        ),
+    )
+
+
 @bot.event
 async def on_ready():
     await tree.sync()
+    if not update_status.is_running():
+        update_status.start()
     print(f"พร้อมใช้งาน: {bot.user}")
 
 
